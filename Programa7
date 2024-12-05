@@ -1,0 +1,51 @@
+import cv2
+import numpy as np
+
+def process_frame(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    lower_pink = np.array([140, 50, 50], np.uint8)
+    upper_pink = np.array([170, 255, 255], np.uint8)
+    mask = cv2.inRange(hsv, lower_pink, upper_pink)
+    edges = cv2.Canny(mask, 10, 150)
+    edges = cv2.dilate(edges, None, iterations=5)
+    edges = cv2.erode(edges, None, iterations=5)
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return contours, frame
+
+def detect_shapes(contours, frame):
+    for contour in contours:
+        epsilon = 0.01 * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        x, y, w, h = cv2.boundingRect(approx)
+        if len(approx) == 3:
+            cv2.putText(frame, 'Triangulo', (x, y - 5), 1, 1, (255, 105, 180), 1)
+        elif len(approx) == 4:
+            aspect_ratio = float(w) / h
+            if 0.95 <= aspect_ratio <= 1.05:
+                cv2.putText(frame, 'Cuadrado', (x, y - 5), 1, 1, (255, 105, 180), 1)
+            else:
+                cv2.putText(frame, 'Rectangulo', (x, y - 5), 1, 1, (255, 105, 180), 1)
+        elif len(approx) == 5:
+            cv2.putText(frame, 'Pentagono', (x, y - 5), 1, 1, (255, 105, 180), 1)
+        elif len(approx) == 6:
+            cv2.putText(frame, 'Hexagono', (x, y - 5), 1, 1, (255, 105, 180), 1)
+        elif len(approx) > 10:
+            cv2.putText(frame, 'Circulo', (x, y - 5), 1, 1, (255, 105, 180), 1)
+        cv2.drawContours(frame, [approx], 0, (255, 105, 180), 2)
+    return frame
+
+cap = cv2.VideoCapture(0)
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    contours, processed_frame = process_frame(frame)
+    final_frame = detect_shapes(contours, processed_frame)
+    cv2.imshow('Formas Detectadas', final_frame)
+    key = cv2.waitKey(1) & 0xFF
+    if key == 27:
+        break
+
+cap.release()
+cv2.destroyAllWindows()
